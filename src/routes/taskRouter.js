@@ -5,7 +5,7 @@ const taskRouter = new express.Router()
 const log = console.log
 
 
-const Task = require('../db/Task')
+const Task = require('../models/Task')
 
 // ^^ Get Tasks
 taskRouter.get('/tasks', async (req, res, next) => {
@@ -57,7 +57,7 @@ taskRouter.get('/tasks/:id', async (req, res, next) => {
 })
 
 // ^^ Create Task
-taskRouter.post('/task', async (req, res, next) => {
+taskRouter.post('/tasks', async (req, res, next) => {
 
     // ## Create Task
     const task = new Task(req.body)
@@ -123,7 +123,13 @@ taskRouter.delete('/tasks/:id', async (req, res) => {
 
     try {
         // ^^ Query DB
-        const task = await Task.findByIdAndDelete(_id)
+        const task = await Task.findById(_id)
+
+        // ## Update Use
+        updates.forEach(update => task[update] = req.body[update])
+
+        // ^^ Query DB to save
+        await task.save()
 
         // !! Error Handler
         if (!task) {

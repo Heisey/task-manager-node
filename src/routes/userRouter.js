@@ -1,31 +1,76 @@
-const express = require('express')
 const chalk = require('chalk')
+const express = require('express')
 
-const User = require('../db/User')
+// ?? Middleware
+const auth = require('../middleware/auth');
+
+const User = require('../models/User')
 
 const userRouter = new express.Router()
 const log = console.log
 
-// ^^ Get all Users
-userRouter.get('/users', async (req, res, next) => {
+
+// ^^ Login User
+userRouter.post('/users/login', async (req, res, next) => {
+
+    // ## Get Submitted password and email
+    const {
+        email,
+        password
+    } = req.body
+
     try {
 
-        // ^^ Query DB 
-        const users = await User.find()
+        // ^^ Query DB for user by email and check credentials
+        const user = await User.findByCredentials(email, password)
 
-        // !! Error Handler
-        if (!users) {
-            return res.status(404).send('Users not found')
-        }
+        // ## Generate Authentication Token
+        const token = await user.generateAuthToken()
 
         // ^^ Response
-        res.send(users)
+        res.send({
+            user,
+            token
+        })
 
         // !! Error Handler
     } catch (err) {
-        log(chalk.red.bold.inverse("!!!!! Unable to get users"))
-        res.status(500).send(err)
+        log(chalk.red.bold.inverse("!!!!! Failed to login"))
+        res.status(400).send(err)
     }
+})
+
+// ^^ Create User
+userRouter.post('/users', async (req, res, next) => {
+
+    // ## Create User
+    const user = new User(req.body)
+
+    try {
+
+        // ^^ Query DB to save
+        await user.save()
+
+        // ## Generate Authentication Token
+        const token = await user.generateAuthToken()
+
+        // ^^ Response
+        res.status(201).send({
+            user,
+            token
+        })
+
+        // !! Error Handler
+    } catch (err) {
+        log(chalk.red.bold.inverse("!!!!! Unable to create user !!!!!"))
+        res.status(400).send("!!!!! Unable to create user !!!!!")
+    }
+})
+
+
+// ^^ Get all Users
+userRouter.get('/users/me', auth, async (req, res, next) => {
+    res.send(req.user)
 })
 
 
@@ -54,27 +99,6 @@ userRouter.get('/users/:id', async (req, res, next) => {
     }
 })
 
-// ^^ Create User
-userRouter.post('/users', async (req, res, next) => {
-
-    // ## Create User
-    const user = new User(req.body)
-
-    try {
-
-        // ^^ Query DB to save
-        await user.save()
-
-        // ^^ Response
-        res.status(201).send(user)
-
-        // !! Error Handler
-    } catch (err) {
-        log(chalk.red.bold.inverse("!!!!! Unable to create user !!!!!"))
-        res.status(400).send("!!!!! Unable to create user !!!!!")
-    }
-})
-
 // ^^ Update User
 userRouter.patch('/users/:id', async (req, res, next) => {
 
@@ -94,12 +118,14 @@ userRouter.patch('/users/:id', async (req, res, next) => {
     }
 
     try {
-
         // ^^ Query DB
-        const user = await User.findByIdAndUpdate(_id, req.body, {
-            new: true,
-            runValidators: true
-        })
+        const user = await User.findById(_id)
+
+        // ## Update User
+        updates.forEach(update => user[update] = req.body[update])
+
+        // ^^ Query DB to save
+        await user.save()
 
         // !! Error Handler
         if (!user) {

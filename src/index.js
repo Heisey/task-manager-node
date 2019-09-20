@@ -3,13 +3,14 @@
 // *****************************************************************************************
 
 // ?? Models
-const User = require('./db/User')
-const Task = require('./db/Task')
-// const mon = require('./db/moongoose')
+const User = require('./models/User')
+const Task = require('./models/Task')
 
 // ?? Routes
 const userRouter = require('./routes/userRouter');
 const taskRouter = require('./routes/taskRouter');
+
+
 
 // ?? Vendor Modules
 const express = require('express')
@@ -28,14 +29,22 @@ const app = express()
 // ?? Set headers with helmet
 app.use(helmet())
 
+
 app.use(express.json())
 app.use(express.urlencoded())
 
+
+
+
+
 // ************************************ Routes *********************************************
-// ************************************ Users **********************************************
 
 app.use(userRouter)
 app.use(taskRouter)
+
+
+
+// ************************************ Security *******************************************
 
 
 
@@ -44,28 +53,15 @@ app.use(taskRouter)
 // ************************************ Server *********************************************
 
 const connectionUrl = 'mongodb://127.0.0.1:27017'
-const dbName = 'taskManager';
 const port = process.env.PORT || 8000;
-
-// MongoClient.connect(connectionUrl, {
-//     useUnifiedTopology: true,
-//     useNewUrlParser: true
-// }, (error, client) => {
-//     if (error) {
-//         return log(chalk.redBright.bold.inverse("!!!!! Unable to connect to Mongo !!!!!"))
-//     }
-
-//     const db = client.db(dbName);
-
-//     log(chalk.green.bold.inverse("<<<<< You are connected to Mongo >>>>>"))
-
-// })
 
 mongoose.connect(`${connectionUrl}/task-manager-api`, {
     useNewUrlParser: true,
     useCreateIndex: true,
     useUnifiedTopology: true,
     useFindAndModify: false
+}, () => {
+    log(chalk.green.bold.inverse(`<<<<< DataBase Connected to App >>>>>`))
 })
 
 app.listen(port, () => {
