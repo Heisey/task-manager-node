@@ -34,9 +34,6 @@ app.use(express.json())
 app.use(express.urlencoded())
 
 
-
-
-
 // ************************************ Routes *********************************************
 
 app.use(userRouter)
@@ -52,8 +49,8 @@ app.use(taskRouter)
 
 // ************************************ Server *********************************************
 
-const connectionUrl = 'mongodb://127.0.0.1:27017'
-const port = process.env.PORT || 8000;
+const connectionUrl = process.env.LOCAL_DB
+const port = process.env.PORT || 3000;
 
 mongoose.connect(`${connectionUrl}/task-manager-api`, {
     useNewUrlParser: true,

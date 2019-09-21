@@ -1,27 +1,42 @@
-const express = require('express')
-const chalk = require('chalk')
+const auth = require('../middleware/auth')
 
-const taskRouter = new express.Router()
+const chalk = require('chalk')
+const express = require('express')
+
 const log = console.log
 
+const taskRouter = new express.Router()
 
 const Task = require('../models/Task')
 
 // ^^ Get Tasks
-taskRouter.get('/tasks', async (req, res, next) => {
+taskRouter.get('/tasks', auth, async (req, res, next) => {
+    const match = {}
+    const sort = {}
+
+    if (req.query.completed) {
+        match.completed = req.query.completed === 'true'
+    }
+
+    if (req.query.field) {
+        sort[req.query.field] = req.query.order === 'desc' ? -1 : 1
+    }
+    log(sort)
     try {
 
         // ^^ Query DB
-        const tasks = await Task.find()
-
-        // !! Error Handler
-        if (!tasks) {
-            log(chalk.red.bold.inverse("!!!!! Unable to get tasks !!!!!"))
-            return res.status(500).send()
-        }
+        await req.user.populate({
+            path: 'tasks',
+            match,
+            options: {
+                limit: req.query.limit * 1,
+                skip: req.query.page * 1,
+                sort
+            }
+        }).execPopulate()
 
         // ^^ Response
-        res.send(tasks)
+        res.send(req.user.tasks)
 
         // !! Error Handler
     } catch (err) {
@@ -31,15 +46,18 @@ taskRouter.get('/tasks', async (req, res, next) => {
 })
 
 // ^^ Get Task
-taskRouter.get('/tasks/:id', async (req, res, next) => {
+taskRouter.get('/tasks/:id', auth, async (req, res, next) => {
 
     // ## Task ID
     const _id = req.params.id
 
     try {
         // ^^ Query DB
-        const task = await Task.findById(_id)
-
+        const task = await Task.findOne({
+            _id,
+            creator: req.user._id
+        })
+        log(task)
         // !! Error Handler
         if (!task) {
             log(chalk.red.bold.inverse("!!!!! Unable to get task !!!!!"))
@@ -57,10 +75,13 @@ taskRouter.get('/tasks/:id', async (req, res, next) => {
 })
 
 // ^^ Create Task
-taskRouter.post('/tasks', async (req, res, next) => {
+taskRouter.post('/tasks', auth, async (req, res, next) => {
 
     // ## Create Task
-    const task = new Task(req.body)
+    const task = new Task({
+        ...req.body,
+        creator: req.user._id
+    })
 
     try {
         // ^^ Query DB to save
@@ -77,7 +98,7 @@ taskRouter.post('/tasks', async (req, res, next) => {
 })
 
 // ^^ Update Task
-taskRouter.patch('/tasks/:id', async (req, res, next) => {
+taskRouter.patch('/tasks/:id', auth, async (req, res, next) => {
 
     // ## Task ID
     const _id = req.params.id
@@ -96,15 +117,19 @@ taskRouter.patch('/tasks/:id', async (req, res, next) => {
 
     try {
         // ^^ Query DB
-        const task = await Task.findByIdAndUpdate(_id, req.body, {
-            new: true,
-            runValidators: true
+        const task = await Task.findOne({
+            _id,
+            creator: req.user._id
         })
 
         // !! Error Handler
         if (!task) {
             return res.status(400).send("!!!!! Unable to update task !!!!!")
         }
+
+        updates.forEach(update => task[update] = req.body[update])
+
+        await task.save()
 
         // ^^ Response
         res.status(201).send(task)
@@ -116,20 +141,17 @@ taskRouter.patch('/tasks/:id', async (req, res, next) => {
 })
 
 // ^^ Delete Task
-taskRouter.delete('/tasks/:id', async (req, res) => {
+taskRouter.delete('/tasks/:id', auth, async (req, res) => {
 
     // ## Task ID
     const _id = req.params.id
 
     try {
         // ^^ Query DB
-        const task = await Task.findById(_id)
-
-        // ## Update Use
-        updates.forEach(update => task[update] = req.body[update])
-
-        // ^^ Query DB to save
-        await task.save()
+        const task = await Task.findOneAndDelete({
+            _id,
+            creator: req.user._id
+        })
 
         // !! Error Handler
         if (!task) {
