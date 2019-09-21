@@ -50,7 +50,7 @@ app.use(taskRouter)
 // ************************************ Server *********************************************
 
 const connectionUrl = process.env.LOCAL_DB
-const port = process.env.PORT || 3000;
+const port = process.env.PORT;
 
 mongoose.connect(`${connectionUrl}/task-manager-api`, {
     useNewUrlParser: true,
